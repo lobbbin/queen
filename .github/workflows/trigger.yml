@@ -1,4 +1,4 @@
-name: Unzip App Source Code
+name: Unzip and Commit Artifact
 
 on:
   push:
@@ -8,37 +8,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  extract:
+  extract_and_commit:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        # Uses your custom token to bypass workflow file protection locks
+        token: ${{ secrets.MY_PUSH_TOKEN }}
 
     - name: Extract Project Files
       run: |
-        echo "📦 Extracting target archive: source.zip"
+        echo "📦 Extracting source archive..."
         mkdir -p temp_extract
         unzip -q source.zip -d temp_extract
         
-        echo "🔍 Locating Android project root..."
         GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-        
         if [ -z "$GRADLE_PATH" ]; then
-          echo "❌ ERROR: No build.gradle file found inside source.zip!"
+          echo "❌ ERROR: No build.gradle file found!"
           exit 1
         fi
         
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
-        echo "🎯 Project directory located: $PROJECT_ROOT"
-        
-        echo "🚚 Moving files to workspace root..."
         cp -r "$PROJECT_ROOT"/. .
-        
-        echo "🧹 Cleaning up zip files from package..."
         rm -rf temp_extract README.md source.zip
 
-    - name: Upload Clean Extracted Project
-      uses: actions/upload-artifact@v4
-      with:
-        name: clean-extracted-project
-        path: ./*
+    - name: Push Clean Files back to Repo
+      run: |
+        git config --global user.name "lobbbin"
+        git config --global user.email "lobbbin@://github.com"
+        git add .
+        git commit -m "Automated extraction of project files into repository" || exit 0
+        git push origin HEAD:${{ github.ref_name }}
