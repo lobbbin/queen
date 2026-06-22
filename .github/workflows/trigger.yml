@@ -17,30 +17,18 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Unzip Source Files
+    - name: Extract Archive Contents
       run: |
-        ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
-        if [ -z "$ZIP_FILE" ]; then
-          echo "ERROR: No ZIP file found in root directory"
-          exit 1
-        fi
-        
-        echo "Extracting project file..."
         mkdir -p temp_extract
-        unzip -q "$ZIP_FILE" -d temp_extract
+        unzip -q "*.zip" -d temp_extract
         
         GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-        if [ -z "$GRADLE_PATH" ]; then
-          echo "ERROR: No build.gradle file found inside ZIP"
-          exit 1
-        fi
-        
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
         
         cp -r "$PROJECT_ROOT"/. .
-        rm -rf temp_extract README.md "$ZIP_FILE"
+        rm -rf temp_extract README.md *.zip
 
-    - name: Commit and Push Extracted Files
+    - name: Commit Extracted Project Files
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
