@@ -7,10 +7,6 @@ on:
       - master
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   extract:
     runs-on: ubuntu-latest
@@ -35,17 +31,14 @@ jobs:
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
         echo "🎯 Project directory located: $PROJECT_ROOT"
         
-        echo "🚚 Pushing files into root layout..."
+        echo "🚚 Moving files to workspace root..."
         cp -r "$PROJECT_ROOT"/. .
         
-        echo "🧹 Cleaning temporary archive artifacts..."
+        echo "🧹 Cleaning up zip files from package..."
         rm -rf temp_extract README.md source.zip
 
-    - name: Create Pull Request with Extracted Files
-      uses: peter-evans/create-pull-request@v6
+    - name: Upload Clean Extracted Project
+      uses: actions/upload-artifact@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        branch: extract-app-source
-        title: "Automated extraction of project source files"
-        body: "This Pull Request was automatically generated to extract your Android application files and internal build workflows securely."
-        commit-message: "Extract project files from source.zip"
+        name: clean-extracted-project
+        path: ./*
