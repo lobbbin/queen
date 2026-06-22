@@ -7,6 +7,10 @@ on:
       - master
   workflow_dispatch:
 
+# THIS BLOCK FIXES THE CRASH BY ALLOWING GITHUB TO WRITE FILES
+permissions:
+  contents: write
+
 jobs:
   extract:
     runs-on: ubuntu-latest
@@ -22,13 +26,19 @@ jobs:
           exit 1
         fi
         
-        echo "📦 Extracting project..."
+        echo "📦 Extracting project: $ZIP_FILE"
         mkdir -p temp_extract
         unzip -q "$ZIP_FILE" -d temp_extract
         
         # Locate the inner root containing build.gradle
         GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
+        if [ -z "$GRADLE_PATH" ]; then
+          echo "❌ No build.gradle found inside ZIP!"
+          exit 1
+        fi
+        
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
+        echo "🎯 Found project root folder at: $PROJECT_ROOT"
         
         # Move all contents to the repository root directory
         cp -r "$PROJECT_ROOT"/. .
@@ -37,7 +47,7 @@ jobs:
     - name: Commit and Push Extracted Files
       run: |
         git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@://github.com"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add .
         git commit -m "Automated unzip: Extracted project and workflows" || exit 0
         git push origin HEAD:${{ github.ref_name }}
