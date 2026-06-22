@@ -1,4 +1,4 @@
-name: Extract and Trigger Internal Workflow
+name: Unzip App Source Code
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
       - master
   workflow_dispatch:
 
-# THIS BLOCK FIXES THE CRASH BY ALLOWING GITHUB TO WRITE FILES
 permissions:
   contents: write
 
@@ -22,32 +21,29 @@ jobs:
       run: |
         ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
         if [ -z "$ZIP_FILE" ]; then
-          echo "❌ No ZIP file found!"
+          echo "ERROR: No ZIP file found in root directory"
           exit 1
         fi
         
-        echo "📦 Extracting project: $ZIP_FILE"
+        echo "Extracting project file..."
         mkdir -p temp_extract
         unzip -q "$ZIP_FILE" -d temp_extract
         
-        # Locate the inner root containing build.gradle
         GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
         if [ -z "$GRADLE_PATH" ]; then
-          echo "❌ No build.gradle found inside ZIP!"
+          echo "ERROR: No build.gradle file found inside ZIP"
           exit 1
         fi
         
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
-        echo "🎯 Found project root folder at: $PROJECT_ROOT"
         
-        # Move all contents to the repository root directory
         cp -r "$PROJECT_ROOT"/. .
         rm -rf temp_extract README.md "$ZIP_FILE"
 
     - name: Commit and Push Extracted Files
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
         git add .
-        git commit -m "Automated unzip: Extracted project and workflows" || exit 0
+        git commit -m "Automated extraction of project source files" || exit 0
         git push origin HEAD:${{ github.ref_name }}
