@@ -16,18 +16,23 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Find and Extract ZIP File
+      shell: bash
       run: |
+        echo "🔍 Searching for ZIP file..."
         ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+        
         if [ -z "$ZIP_FILE" ]; then
           echo "❌ Error: No .zip file found in the root directory!"
           exit 1
         fi
         
         echo "📦 Found ZIP: $ZIP_FILE. Extracting..."
-        mkdir staging_dir
+        mkdir -p staging_dir
         unzip -q "$ZIP_FILE" -d staging_dir
         
+        echo "📂 Looking for build.gradle inside the ZIP..."
         GRADLE_PATH=$(find staging_dir -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
+        
         if [ -z "$GRADLE_PATH" ]; then
           echo "❌ Error: No build.gradle or build.gradle.kts found inside the ZIP!"
           exit 1
@@ -36,12 +41,12 @@ jobs:
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
         echo "🎯 Project root detected at: $PROJECT_ROOT"
         
+        echo "🚚 Moving project files to root workspace..."
         cp -r "$PROJECT_ROOT"/. .
         rm -rf staging_dir
         
-        # Ensure a gradle wrapper script exists in the root
         if [ ! -f "./gradlew" ]; then
-          echo "⚠️ gradlew wrapper missing in root. Attempting fallback generation..."
+          echo "⚠️ gradlew wrapper missing in root. Generating wrapper..."
           gradle wrapper || true
         fi
 
