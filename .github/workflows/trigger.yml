@@ -1,4 +1,4 @@
-name: Unzip and Push to Main
+name: Deploy Clean Artifact to Main
 
 on:
   push:
@@ -7,48 +7,33 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  extract_and_push:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+
+    - name: Download Extracted Artifact
+      uses: actions/download-artifact@v4
       with:
-        # Uses your custom token to authorize pushing workflow files (.yml) safely
-        token: ${{ secrets.MY_PUSH_TOKEN }}
+        name: clean-extracted-project
+        path: ./
 
-    - name: Extract Project Files
+    - name: Clean Up Workspace
       run: |
-        if [ ! -f "source.zip" ]; then
-          echo "❌ ERROR: source.zip not found in root directory!"
-          exit 1
-        fi
+        rm -f source.zip unzip.zip README.md
+        ls -la
 
-        echo "📦 Extracting target archive: source.zip"
-        mkdir -p temp_extract
-        unzip -q source.zip -d temp_extract
-        
-        echo "🔍 Locating Android project root..."
-        GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-        
-        if [ -z "$GRADLE_PATH" ]; then
-          echo "❌ ERROR: No build.gradle file found inside source.zip!"
-          exit 1
-        fi
-        
-        PROJECT_ROOT=$(dirname "$GRADLE_PATH")
-        echo "🎯 Project directory located: $PROJECT_ROOT"
-        
-        echo "🚚 Moving files to workspace root..."
-        cp -r "$PROJECT_ROOT"/. .
-        
-        echo "🧹 Cleaning up archive artifacts..."
-        rm -rf temp_extract README.md source.zip
-
-    - name: Commit and Push to Main Branch
-      run: |
-        git config --global user.name "github-actions"
-        git config --global user.email "github-actions@github.com"
-        git add .
-        git commit -m "Automated extraction of project source files directly to main" || exit 0
-        git push origin HEAD:main
+    - name: Create Clean Pull Request
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: deploy-clean-app
+        title: "Deploy clean unzipped files from artifact"
+        body: "Extracting application source files onto the main tracking branch."
+        commit-message: "Deploy clean unzipped files from artifact sha256:7b2ea377"
