@@ -7,8 +7,10 @@ on:
       - master
   workflow_dispatch:
 
+# THIS BLOCK GRANTS PERMISSION TO PUSH THE INTERNAL WORKFLOW FILES
 permissions:
   contents: write
+  workflows: write
 
 jobs:
   extract:
