@@ -1,51 +1,33 @@
-name: Unzip and Commit Artifact
+name: Deploy Artifact to Main
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
+  workflow_dispatch: # Allows you to trigger this instantly by clicking "Run workflow" on GitHub
 
 permissions:
   contents: write
   workflows: write
 
 jobs:
-  extract_and_commit:
+  deploy_artifact:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+
+    - name: Download Extracted Artifact
+      uses: actions/download-artifact@v4
       with:
-        token: ${{ secrets.MY_PUSH_TOKEN }}
+        name: clean-extracted-project
+        path: ./
 
-    - name: Extract Project Files
+    - name: Commit and Push Clean Source Files
       run: |
-        if [ ! -f "source.zip" ]; then
-          echo "⚠️ source.zip not found in workspace root. Checking for active state..."
-        fi
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@://github.com"
         
-        echo "📦 Initializing target extraction..."
-        mkdir -p temp_extract
-        unzip -q source.zip -d temp_extract || true
+        # Remove any lingering trigger or archive files if desired
+        rm -f source.zip
         
-        echo "🔍 Scanning layout layers..."
-        GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-        
-        if [ -z "$GRADLE_PATH" ]; then
-          echo "❌ ERROR: Critical build files missing from workspace directory tree."
-          exit 1
-        fi
-        
-        PROJECT_ROOT=$(dirname "$GRADLE_PATH")
-        cp -r "$PROJECT_ROOT"/. .
-        rm -rf temp_extract README.md source.zip
-
-    - name: Push Clean Files back to Repo
-      run: |
-        git config --global user.name "lobbbin"
-        git config --global user.email "lobbbin@users.noreply.github.com"
         git add .
-        git commit -m "Automated extraction of project files into repository" || exit 0
-        git push origin HEAD:${{ github.ref_name }}
+        git commit -m "Deploy clean unzipped files from artifact sha256:7b2ea377" || exit 0
+        git push origin HEAD:main
