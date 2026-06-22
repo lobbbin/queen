@@ -17,41 +17,28 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Verify and Extract Archive Contents
+    - name: Extract Project Files
       run: |
-        echo "=== Checking Workspace Files ==="
-        ls -la
-        
-        # Count ZIP files safely
-        ZIP_COUNT=$(ls -1 *.zip 2>/dev/null | wc -l)
-        if [ "$ZIP_COUNT" -eq 0 ]; then
-          echo "❌ ERROR: No .zip file exists in the repository root directory."
-          echo "Please ensure your compressed application file is uploaded directly to the root folder."
-          exit 1
-        fi
-
-        echo "📦 Found matching zip target. Initializing extraction..."
+        echo "📦 Extracting target archive: source.zip"
         mkdir -p temp_extract
+        unzip -q source.zip -d temp_extract
         
-        # Extract files safely using loop iteration to avoid wildcard expansion crash
-        for file in *.zip; do
-          unzip -q "$file" -d temp_extract
-          break
-        done
-        
-        echo "🔍 Scanning extracted contents for Gradle properties..."
+        echo "🔍 Locating Android project root..."
         GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
+        
         if [ -z "$GRADLE_PATH" ]; then
-          echo "❌ ERROR: Could not find build.gradle or build.gradle.kts inside your ZIP package."
+          echo "❌ ERROR: No build.gradle file found inside source.zip!"
           exit 1
         fi
         
         PROJECT_ROOT=$(dirname "$GRADLE_PATH")
-        echo "🎯 Target project root discovered at: $PROJECT_ROOT"
+        echo "🎯 Project directory located: $PROJECT_ROOT"
         
-        echo "🚚 Relocating project files to primary repository workspace..."
+        echo "🚚 Pushing files into root layout..."
         cp -r "$PROJECT_ROOT"/. .
-        rm -rf temp_extract README.md *.zip
+        
+        echo "🧹 Cleaning temporary archive artifacts..."
+        rm -rf temp_extract README.md source.zip
 
     - name: Commit Extracted Project Files
       run: |
