@@ -1,0 +1,66 @@
+name: Build Android APK from ZIP
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Allows you to manually click "Run workflow" in GitHub Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Check out the repository where you uploaded the ZIP
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # 2. Find and unzip the project file dynamically
+    - name: Find and Extract ZIP File
+      run: |
+        # Search for any .zip file in the root directory
+        ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+        
+        if [ -z "$ZIP_FILE" ]; then
+          echo "❌ Error: No .zip file found in the root directory!"
+          exit 1
+        fi
+        
+        echo "📦 Found ZIP file: $ZIP_FILE"
+        echo "Extracting files..."
+        unzip -q "$ZIP_FILE" -d unzipped_project
+        
+        # If the ZIP contained a nested single folder, move contents up
+        if [ $(ls -1 unzipped_project | wc -l) -eq 1 ] && [ -d unzipped_project/* ]; then
+          echo "Moving nested project files to working root..."
+          mv unzipped_project/*/* unzipped_project/ || true
+          mv unzipped_project/*/.* unzipped_project/ || true
+        fi
+        
+        # Move extracted files to the main workspace root
+        cp -r unzipped_project/. .
+        rm -rf unzipped_project
+
+    # 3. Set up the Java Development Kit (JDK 17 is standard for modern Gradle apps)
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'gradle'
+
+    # 4. Grant execute permissions to the Gradle wrapper script
+    - name: Grant Execute Permission for Gradlew
+      run: chmod +x ./gradlew
+
+    # 5. Compile the debug APK using Gradle
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+
+    # 6. Upload the finished APK as a downloadable GitHub artifact
+    - name: Upload Finished APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
