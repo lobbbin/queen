@@ -7,6 +7,10 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+  workflows: write
+
 jobs:
   extract_and_commit:
     runs-on: ubuntu-latest
@@ -14,18 +18,23 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        # Uses your custom token to bypass workflow file protection locks
         token: ${{ secrets.MY_PUSH_TOKEN }}
 
     - name: Extract Project Files
       run: |
-        echo "📦 Extracting source archive..."
-        mkdir -p temp_extract
-        unzip -q source.zip -d temp_extract
+        if [ ! -f "source.zip" ]; then
+          echo "⚠️ source.zip not found in workspace root. Checking for active state..."
+        fi
         
+        echo "📦 Initializing target extraction..."
+        mkdir -p temp_extract
+        unzip -q source.zip -d temp_extract || true
+        
+        echo "🔍 Scanning layout layers..."
         GRADLE_PATH=$(find temp_extract -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
+        
         if [ -z "$GRADLE_PATH" ]; then
-          echo "❌ ERROR: No build.gradle file found!"
+          echo "❌ ERROR: Critical build files missing from workspace directory tree."
           exit 1
         fi
         
@@ -36,7 +45,7 @@ jobs:
     - name: Push Clean Files back to Repo
       run: |
         git config --global user.name "lobbbin"
-        git config --global user.email "lobbbin@://github.com"
+        git config --global user.email "lobbbin@users.noreply.github.com"
         git add .
         git commit -m "Automated extraction of project files into repository" || exit 0
         git push origin HEAD:${{ github.ref_name }}
