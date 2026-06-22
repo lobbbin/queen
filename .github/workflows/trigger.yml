@@ -7,10 +7,9 @@ on:
       - master
   workflow_dispatch:
 
-# THIS BLOCK GRANTS PERMISSION TO PUSH THE INTERNAL WORKFLOW FILES
 permissions:
   contents: write
-  workflows: write
+  pull-requests: write
 
 jobs:
   extract:
@@ -42,10 +41,11 @@ jobs:
         echo "🧹 Cleaning temporary archive artifacts..."
         rm -rf temp_extract README.md source.zip
 
-    - name: Commit Extracted Project Files
-      run: |
-        git config --global user.name "github-actions"
-        git config --global user.email "github-actions@github.com"
-        git add .
-        git commit -m "Automated extraction of project source files" || exit 0
-        git push origin HEAD:${{ github.ref_name }}
+    - name: Create Pull Request with Extracted Files
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: extract-app-source
+        title: "Automated extraction of project source files"
+        body: "This Pull Request was automatically generated to extract your Android application files and internal build workflows securely."
+        commit-message: "Extract project files from source.zip"
